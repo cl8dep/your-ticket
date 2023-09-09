@@ -9,11 +9,11 @@ import { useMediaQuery } from '@mui/material';
 
 export default function ThemeRegister({ children }: { children: React.ReactNode }) {
 
-  const prefersLightMode = useMediaQuery("(prefers-color-scheme: light)");
+  const prefersLightMode = true; //useMediaQuery("(prefers-color-scheme: light)");
 
   const theme = React.useMemo(
     () => createTheme({ prefersLightMode }),
-    [prefersLightMode]
+    []
   );
 
   return (

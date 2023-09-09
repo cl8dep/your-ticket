@@ -1,8 +1,10 @@
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
+using YourTicket.API.Extensions;
 using YourTicket.API.Persistance.Database;
 using YourTicket.API.Persistance.Models;
 
@@ -20,15 +22,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddAuthentication().AddBearerToken(IdentityConstants.BearerScheme);
+builder.Services.AddAuthentication()
+.AddBearerToken(IdentityConstants.BearerScheme)
+.AddGoogle(options =>
+{
+    options.ClientId = builder.Configuration["GOOGLE_CLIENT_ID"];
+    options.ClientSecret = builder.Configuration["GOOGLE_CLIENT_SECRET"];
+    options.CallbackPath = "/auth/google-callback";
+});
 builder.Services.AddAuthorization(options =>
 {
-    options.DefaultPolicy = new AuthorizationPolicyBuilder(IdentityConstants.BearerScheme)
-        .RequireAuthenticatedUser()
-        .Build();
+    // options.DefaultPolicy = new AuthorizationPolicyBuilder(IdentityConstants.BearerScheme)
+    //     .RequireAuthenticatedUser()
+    //     .Build();
 });
 
-var connectionString = builder.Configuration.GetConnectionString("MainDatabase") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+builder.Services.AddInnerServices();
+
+var connectionString = builder.Configuration["MAIN_DATABASE_CONNECTION_STRING"] ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 builder.Services.AddDbContext<MainDbContext>(options =>
     options.UseSqlite(connectionString));
 
@@ -44,12 +55,10 @@ builder.Services.Configure<IdentityOptions>(options =>
     options.Password.RequireUppercase = false;
     options.Password.RequiredLength = 4;
     options.Password.RequiredUniqueChars = 1;
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyz";
     options.User.RequireUniqueEmail = true;
 });
 
 var app = builder.Build();
-
 
 
 // Configure the HTTP request pipeline.

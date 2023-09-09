@@ -8,6 +8,7 @@ using System.Security.Claims;
 using YourTicket.API.Models;
 using YourTicket.API.Persistance.Database;
 using YourTicket.API.Persistance.Models;
+using YourTicket.API.Persistance.Services;
 
 namespace YourTicket.API.Controllers
 {
@@ -17,12 +18,12 @@ namespace YourTicket.API.Controllers
     public class TicketController : ControllerBase
     {
         public UserManager<ApplicationAccount> UserManager { get; }
-        public MainDbContext MainDbContext { get; }
+        public TicketsService TicketsService { get; }
 
-        public TicketController(UserManager<ApplicationAccount> userManager, MainDbContext mainDbContext)
+        public TicketController(UserManager<ApplicationAccount> userManager, TicketsService ticketsService)
         {
             UserManager = userManager;
-            MainDbContext = mainDbContext;
+            TicketsService = ticketsService;
         }
 
 
@@ -33,9 +34,20 @@ namespace YourTicket.API.Controllers
         }
 
         [HttpGet("{id}")]
-        public ActionResult GetItem(int id)
+        [AllowAnonymous]
+        public async Task<ActionResult> GetTicketDetails(int id)
         {
-            return Ok();
+
+            if (User.Identity.IsAuthenticated)
+            {
+                // El usuario está autenticado, devuelve una respuesta personalizada
+                return Ok("¡Bienvenido, usuario autenticado!");
+            }
+            else
+            {
+                var result = await TicketsService.GetTicketDetails(id);
+                return result.IsSuccess ? Ok(result.Value) : result.Errors.First(x => x.Message.Contains("NOT_FOUND")) != null ? NotFound() : BadRequest(result.Errors);
+            }
         }
 
         [HttpPost]
@@ -44,7 +56,8 @@ namespace YourTicket.API.Controllers
         {
             var user = await UserManager.GetUserAsync(User);
 
-            var result = MainDbContext.Tickets.Add(new Ticket() {
+            var result = await TicketsService.CreateTicket(new Ticket()
+            {
                 Title = request.Title,
                 Description = request.Description,
                 CreatedAt = DateTime.UtcNow,
@@ -52,26 +65,20 @@ namespace YourTicket.API.Controllers
                 Status = TicketStatus.PENDING
             });
 
-            MainDbContext.SaveChanges();
-
-            return Ok(new {
-                TicketId = result.Entity.Id.ToString("00000"),
-                CreatedAt = result.Entity.CreatedAt,
-                Status = result.Entity.Status
-            });
+            return result.IsSuccess ? Ok(result.Value) : BadRequest(result.Errors);
         }
 
         [HttpPut("{id}")]
         public IActionResult UpdateItem(int id)
         {
-            
+
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public IActionResult DeleteItem(int id)
         {
-            
+
             return NoContent();
         }
     }
